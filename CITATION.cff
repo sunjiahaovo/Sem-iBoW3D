@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use Sem-iBoW3D in your research, please cite the associated Pattern Recognition paper."
+title: "Sem-iBoW3D"
+authors:
+  - family-names: Sun
+    given-names: Jiahao
+repository-code: "https://github.com/sunjiahaovo/Sem-iBoW3D"
+url: "https://www.sciencedirect.com/science/article/pii/S0031320326013002"
+license: "MIT"
+preferred-citation:
+  type: article
+  title: "Semantic-aided bag-of-words for LiDAR-based place recognition"
+  authors:
+    - family-names: Sun
+      given-names: Jiahao
+    - family-names: Lin
+      given-names: Yuxiaotong
+    - family-names: Zhang
+      given-names: Jian
+    - family-names: Yi
+      given-names: Peiqi
+    - family-names: Li
+      given-names: Liang
+  journal: "Pattern Recognition"
+  pages: "114335"
+  year: 2026
+  publisher:
+    name: "Elsevier"
+  url: "https://www.sciencedirect.com/science/article/pii/S0031320326013002"
