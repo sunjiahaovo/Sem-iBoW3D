@@ -25,7 +25,7 @@ namespace iBoW3D
     class LabelContainer
     {
         public:
-            LabelContainer(int keypoint_num_, int frameID_, const std::string key_label_path_);
+            LabelContainer(int keypoint_num_, int frameID_, const std::string key_label_path_, int semantic_num_);
 
             ~LabelContainer(){}
 
@@ -36,6 +36,7 @@ namespace iBoW3D
         private:
             int keypoint_num;
             int frameID;
+            int semantic_num;
             const std::string key_label_path;
 
             cv::Mat key_label;

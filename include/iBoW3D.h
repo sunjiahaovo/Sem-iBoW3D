@@ -99,6 +99,12 @@ namespace iBoW3D
             // update current pcd
             void update_current_frame(std::shared_ptr<geometry::PointCloud> current_pcd_, int frameID_);
 
+            static void validate_label_value(int label, int semantic_num, const std::string& context);
+            static double mean_candidate_distance(const std::vector<std::pair<double, int>>& distance_list,
+                                                  int center_frame_id,
+                                                  int near_num,
+                                                  std::vector<int>* island = nullptr);
+
             // // update last loop ID
             // void update_lastLoopID(int newID){lastLoopID = newID;}
 

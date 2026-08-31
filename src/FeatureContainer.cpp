@@ -1,11 +1,90 @@
 #include "FeatureContainer.h"
 
+#include <cerrno>
+#include <cmath>
+#include <cstdlib>
+#include <limits>
 #include <stdexcept>
 
 using namespace std;
 
 namespace iBoW3D
 {
+    namespace
+    {
+        string location(const string& path, int row, int col)
+        {
+            return path + ":" + to_string(row) + ":" + to_string(col);
+        }
+
+        float parse_float_token_or_throw(const string& token,
+                                         const string& path,
+                                         int row,
+                                         int col)
+        {
+            char* end = nullptr;
+            errno = 0;
+            const char* begin = token.c_str();
+            float value = strtof(begin, &end);
+            if(begin == end || *end != '\0' || errno == ERANGE || !isfinite(value))
+            {
+                throw runtime_error("Invalid descriptor value at " + location(path, row, col) + ": " + token);
+            }
+            return value;
+        }
+
+        void read_descriptor_file_or_throw(const string& path,
+                                           const string& description,
+                                           int expected_rows,
+                                           int feature_dim,
+                                           cv::Mat& output)
+        {
+            ifstream fp(path);
+            if(!fp.is_open())
+            {
+                throw runtime_error("Failed to open " + description + " descriptor file: " + path);
+            }
+
+            string line;
+            int rowNum = 0;
+            while(getline(fp, line))
+            {
+                if(rowNum >= expected_rows)
+                {
+                    throw runtime_error("Too many rows in " + description + " descriptor file: " + path);
+                }
+
+                istringstream readstr(line);
+                vector<string> tokens;
+                string token;
+                while(readstr >> token)
+                {
+                    tokens.push_back(token);
+                }
+
+                if(static_cast<int>(tokens.size()) != feature_dim)
+                {
+                    throw runtime_error("Expected " + to_string(feature_dim) + " descriptor values but found " +
+                                        to_string(tokens.size()) + " at " + path + ":" + to_string(rowNum + 1));
+                }
+
+                for(int j = 0; j < feature_dim; j++)
+                {
+                    output.at<float>(rowNum, j) =
+                        parse_float_token_or_throw(tokens[j], path, rowNum + 1, j + 1);
+                }
+                rowNum++;
+            }
+
+            if(rowNum != expected_rows)
+            {
+                throw runtime_error("Unexpected row count in " + description + " descriptor file: " + path +
+                                    "; expected " + to_string(expected_rows) +
+                                    ", found " + to_string(rowNum));
+            }
+        }
+    }
+
     FeatureContainer::FeatureContainer(int keypoint_num_, int feature_dim_, int pcd_num_, int frameID_, const std::string key_feature_path_, const std::string all_feature_path_):
     keypoint_num(keypoint_num_), feature_dim(feature_dim_), pcd_num(pcd_num_), frameID(frameID_), key_feature_path(key_feature_path_), all_feature_path(all_feature_path_)
     {
@@ -20,59 +99,11 @@ namespace iBoW3D
 
         // read key features
         const string key_file = key_feature_path+"descriptors_"+to_string(frameID)+".txt";
-        ifstream fp(key_file);
-        if(!fp.is_open())
-        {
-            throw runtime_error("Failed to open key descriptor file: " + key_file);
-        }
-        string line;
-        int rowNum = 0;
-        while (getline(fp, line)){ // read each line
-            if(rowNum >= keypoint_num)
-            {
-                throw runtime_error("Too many rows in key descriptor file: " + key_file);
-            }
-            string number;
-            istringstream readstr(line); // convert string to stream
-            // data in one line are splitted by ","
-            for(int j = 0; j < feature_dim; j++){  // correspond to the number of data in each line
-                getline(readstr, number, ' '); // get data
-                key_feat.at<float>(rowNum, j) = atof(number.c_str()); // convert string to int
-            }
-            rowNum++;
-        }
-        if(rowNum != keypoint_num)
-        {
-            throw runtime_error("Unexpected row count in key descriptor file: " + key_file);
-        }
+        read_descriptor_file_or_throw(key_file, "key", keypoint_num, feature_dim, key_feat);
 
         // read all features
         const string all_file = all_feature_path+"descriptors_"+to_string(frameID)+".txt";
-        ifstream fp2(all_file);
-        if(!fp2.is_open())
-        {
-            throw runtime_error("Failed to open all-point descriptor file: " + all_file);
-        }
-        string line2;
-        rowNum = 0;
-        while (getline(fp2, line2)){ // read each line
-            if(rowNum >= pcd_num)
-            {
-                throw runtime_error("Too many rows in all-point descriptor file: " + all_file);
-            }
-            string number;
-            istringstream readstr(line2); // convert string to stream
-            // data in one line are splitted by ","
-            for(int j = 0; j < feature_dim; j++){  // correspond to the number of data in each line
-                getline(readstr, number, ' '); // get data
-                all_feat.at<float>(rowNum, j) = atof(number.c_str()); // convert string to int
-            }
-            rowNum++;
-        }
-        if(rowNum != pcd_num)
-        {
-            throw runtime_error("Unexpected row count in all-point descriptor file: " + all_file);
-        }
+        read_descriptor_file_or_throw(all_file, "all-point", pcd_num, feature_dim, all_feat);
 
         // // convert double to float
         // key_feat.convertTo(key_feat, CV_32F);
@@ -95,59 +126,11 @@ namespace iBoW3D
 
         // read key features
         const string key_file = key_feature_path+"descriptors_"+to_string(frameID)+".txt";
-        ifstream fp(key_file);
-        if(!fp.is_open())
-        {
-            throw runtime_error("Failed to open key descriptor file: " + key_file);
-        }
-        string line;
-        int rowNum = 0;
-        while (getline(fp, line)){ // read each line
-            if(rowNum >= keypoint_num)
-            {
-                throw runtime_error("Too many rows in key descriptor file: " + key_file);
-            }
-            string number;
-            istringstream readstr(line); // convert string to stream
-            // data in one line are splitted by ","
-            for(int j = 0; j < feature_dim; j++){  // correspond to the number of data in each line
-                getline(readstr, number, ' '); // get data
-                key_feat.at<float>(rowNum, j) = atof(number.c_str()); // convert string to int
-            }
-            rowNum++;
-        }
-        if(rowNum != keypoint_num)
-        {
-            throw runtime_error("Unexpected row count in key descriptor file: " + key_file);
-        }
+        read_descriptor_file_or_throw(key_file, "key", keypoint_num, feature_dim, key_feat);
 
         // read all features
         const string all_file = all_feature_path+"descriptors_"+to_string(frameID)+".txt";
-        ifstream fp2(all_file);
-        if(!fp2.is_open())
-        {
-            throw runtime_error("Failed to open all-point descriptor file: " + all_file);
-        }
-        string line2;
-        rowNum = 0;
-        while (getline(fp2, line2)){ // read each line
-            if(rowNum >= pcd_num)
-            {
-                throw runtime_error("Too many rows in all-point descriptor file: " + all_file);
-            }
-            string number;
-            istringstream readstr(line2); // convert string to stream
-            // data in one line are splitted by ","
-            for(int j = 0; j < feature_dim; j++){  // correspond to the number of data in each line
-                getline(readstr, number, ' '); // get data
-                all_feat.at<float>(rowNum, j) = atof(number.c_str()); // convert string to int
-            }
-            rowNum++;
-        }
-        if(rowNum != pcd_num)
-        {
-            throw runtime_error("Unexpected row count in all-point descriptor file: " + all_file);
-        }
+        read_descriptor_file_or_throw(all_file, "all-point", pcd_num, feature_dim, all_feat);
 
         // // convert double to float
         // key_feat.convertTo(key_feat, CV_32F);

@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.16)
 project(Sem_iBoW3D VERSION 1.0.0 LANGUAGES CXX)
 
 option(SEM_IBOW3D_BUILD_APP "Build the Sem-iBoW3D command line application" ON)
+option(SEM_IBOW3D_ENABLE_SANITIZERS "Build with AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+include(CTest)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,6 +19,10 @@ find_package(OpenCV REQUIRED)
 find_package(Open3D REQUIRED)
 find_package(Threads REQUIRED)
 find_package(TBB QUIET)
+
+if(BUILD_TESTING)
+  find_package(Python3 COMPONENTS Interpreter REQUIRED)
+endif()
 
 if(TARGET TBB::tbb)
   set(SEM_IBOW3D_TBB_TARGET TBB::tbb)
@@ -75,6 +81,14 @@ target_compile_options(sem_ibow3d_core
     -Wno-unused-parameter
 )
 
+if(SEM_IBOW3D_ENABLE_SANITIZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    message(FATAL_ERROR "SEM_IBOW3D_ENABLE_SANITIZERS requires GCC or Clang")
+  endif()
+  target_compile_options(sem_ibow3d_core PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+  target_link_options(sem_ibow3d_core PUBLIC -fsanitize=address,undefined)
+endif()
+
 target_compile_definitions(sem_ibow3d_core PUBLIC GLEW_NO_GLU)
 
 target_link_libraries(sem_ibow3d_core
@@ -128,5 +142,59 @@ if(SEM_IBOW3D_BUILD_APP)
       BUILD_RPATH "${SEM_IBOW3D_EXTRA_RPATHS}"
       INSTALL_RPATH "${SEM_IBOW3D_EXTRA_RPATHS}"
     )
+  endif()
+endif()
+
+if(BUILD_TESTING)
+  add_executable(sem_ibow3d_input_contracts tests/test_input_contracts.cpp)
+  target_link_libraries(sem_ibow3d_input_contracts PRIVATE sem_ibow3d_core)
+  add_test(
+    NAME input_contracts
+    COMMAND sem_ibow3d_input_contracts "${CMAKE_CURRENT_BINARY_DIR}/input_contracts_fixture"
+  )
+
+  if(SEM_IBOW3D_BUILD_APP)
+    add_test(NAME cli_help COMMAND sem_ibow3d --help)
+    set_tests_properties(cli_help PROPERTIES
+      PASS_REGULAR_EXPRESSION "--keypoint-num;--feature-dim;--init-words-num;--words-num-add;--near-num;--gap-num;--ransac-n;--semantic-num;--lambda-label"
+    )
+
+    add_test(
+      NAME cli_rejects_init_pcd_num_one
+      COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/tests/expect_command_failure.py"
+              "--init-pcd-num must be at least 2"
+              "$<TARGET_FILE:sem_ibow3d>"
+              --dataset KITTI --sequence 00 --init-pcd-num 1
+    )
+
+    add_test(
+      NAME cli_rejects_near_num_zero
+      COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/tests/expect_command_failure.py"
+              "--near-num must be positive"
+              "$<TARGET_FILE:sem_ibow3d>"
+              --dataset KITTI --sequence 00 --near-num 0
+    )
+
+    add_test(
+      NAME tiny_registration_ransac
+      COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/tests/run_tiny_registration_smoke.py"
+              "$<TARGET_FILE:sem_ibow3d>"
+              "${CMAKE_CURRENT_BINARY_DIR}/tiny_registration_ransac"
+              ransac
+    )
+    if(SEM_IBOW3D_ENABLE_SANITIZERS)
+      set_tests_properties(tiny_registration_ransac PROPERTIES DISABLED TRUE)
+    endif()
+
+    add_test(
+      NAME tiny_registration_fgr
+      COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/tests/run_tiny_registration_smoke.py"
+              "$<TARGET_FILE:sem_ibow3d>"
+              "${CMAKE_CURRENT_BINARY_DIR}/tiny_registration_fgr"
+              fgr
+    )
+    if(SEM_IBOW3D_ENABLE_SANITIZERS)
+      set_tests_properties(tiny_registration_fgr PROPERTIES DISABLED TRUE)
+    endif()
   endif()
 endif()

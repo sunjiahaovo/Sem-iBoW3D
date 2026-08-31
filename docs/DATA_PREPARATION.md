@@ -27,6 +27,8 @@ res_data/KITTI/05/D3F_keypoints_label_reset_SF/0.txt
 
 `D3F_keypoints_label_reset_SF/<frame>.txt` stores one integer semantic class per keypoint. The default setting expects 20 rows. Static classes should be `0..13`; ignored or dynamic classes should be `-1`.
 
+Descriptor parsing is strict. Each descriptor row must contain exactly `--feature-dim` finite floating-point values; missing values, extra values, non-numeric tokens, `NaN`, and `Inf` are rejected with a file and line number. Semantic-label parsing is also strict: each row must contain exactly one integer, and the only valid values are `-1` or `[0, --semantic-num - 1]`.
+
 ## KITTI-360 Defaults
 
 For KITTI-360, `--project-root` defaults to the following pose and loop files:
@@ -91,3 +93,7 @@ Every data path can be overridden:
 ```
 
 This is useful when keeping datasets outside the source checkout.
+
+## Reproducibility Scope
+
+The repository intentionally does not ship datasets, predicted semantic labels, or precomputed descriptors. The included CTest fixtures verify the public code paths and input contracts with synthetic data, including a registration-path smoke test. Reproducing paper P/R/F1 tables requires the original prepared datasets, descriptor extraction settings, semantic predictions or annotations, and loop ground truth.

@@ -42,6 +42,8 @@ Required:
 - Open3D C++ SDK, tested with Open3D 0.17.0
 - TBB or oneTBB
 
+For Conda environments, install the development package as well as the runtime package, for example `tbb-devel`, so that CMake can find both headers and libraries. Keep the C++ Open3D SDK used for this project separate from any Python `open3d` environment when possible; mixing different Open3D versions in one prefix can make the dynamic loader pick the wrong `libOpen3D.so`.
+
 Optional for Python data utilities:
 
 - Python 3.8+
@@ -72,6 +74,24 @@ cmake --build build -j
 ```
 
 `LIBCXX_RUNTIME_DIR` is only needed when your Open3D binary package depends on a non-system `libc++.so.1`.
+
+Run the built-in regression tests:
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+For local sanitizer checks with GCC or Clang:
+
+```bash
+cmake -S . -B build-asan \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DSEM_IBOW3D_ENABLE_SANITIZERS=ON
+cmake --build build-asan -j
+ctest --test-dir build-asan --output-on-failure
+```
+
+The sanitizer test configuration keeps input-contract and CLI validation tests enabled. The tiny registration smoke tests are disabled under sanitizer builds because the tested Open3D/TBB stack can report process-exit LeakSanitizer noise from TBB arena teardown; run those registration smoke tests in the regular build.
 
 ## Data Layout
 
@@ -128,6 +148,8 @@ A short smoke test:
   --time-dir results/smoke_KITTI_05/time_info
 ```
 
+This short smoke test validates loading, dictionary initialization, retrieval entry points, periodic dictionary update, and output writing. It is intentionally small and does not prove paper-level metrics. The `ctest` suite includes a synthetic fixture that enters the registration code path; full P/R/F1 reproduction still requires the prepared datasets and descriptors used by the paper.
+
 Disable semantic labels:
 
 ```bash
@@ -155,7 +177,7 @@ Default thresholds follow the paper experiments:
 | SemanticKITTI / KITTI | 0.94 | 1.4 | 5 | 1000 | 1000000 |
 | KITTI-360 | 0.90 | 1.6 | 5 | 1000 | 1000000 |
 
-Use `--fit-th`, `--score-th`, `--fit-th2`, `--score-th2`, `--search-num`, `--max-iter`, and `--check-th` to override them.
+Use `--fit-th`, `--score-th`, `--fit-th2`, `--score-th2`, `--search-num`, `--max-iter`, and `--check-th` to override them. Use `--keypoint-num`, `--feature-dim`, `--init-words-num`, `--words-num-add`, `--near-num`, `--gap-num`, `--ransac-n`, `--semantic-num`, and `--lambda-label` only when your prepared data or experiment protocol differs from the defaults.
 
 ## Outputs
 
@@ -171,6 +193,7 @@ If `--time-dir` is set, timing text files are also written for retrieval, candid
 
 - The code expects precomputed local descriptors. The paper experiments used D3Feat-style 32D descriptors stored as text files.
 - Semantic labels are expected at keypoint level and should be remapped to the 14 static classes used by the method, with dynamic classes marked as `-1`.
+- Descriptor files are parsed strictly: each row must contain exactly `--feature-dim` finite float values. Semantic labels must be `-1` or in `[0, --semantic-num - 1]`.
 - The FGR backend is exposed for experimentation with `--registration-backend fgr`; the default and paper setting is RANSAC.
 - The Python utilities are provided for data preparation convenience and are not required to build the C++ executable.
 

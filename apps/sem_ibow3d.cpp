@@ -227,16 +227,25 @@ void print_help(const char* program)
         << "  --label-dir DIR                 Override keypoint semantic-label directory\n\n"
         << "Method options:\n"
         << "  --no-semantic                   Disable semantic-aided BoW and use geometric descriptors only\n"
+        << "  --keypoint-num N                Keypoint descriptors per frame (default: 20)\n"
+        << "  --feature-dim N                 Descriptor dimension (default: 32)\n"
         << "  --fit-th VALUE                  Final registration fitness threshold\n"
         << "  --score-th VALUE                Final registration RMSE threshold\n"
         << "  --fit-th2 VALUE                 Coarse island fitness threshold (default: --fit-th)\n"
         << "  --score-th2 VALUE               Coarse island RMSE threshold (default: --score-th)\n"
         << "  --search-num N                  Candidates kept per selected island (default: 5)\n"
+        << "  --near-num N                    Frame-neighborhood width used to group candidate islands (default: 8)\n"
+        << "  --gap-num N                     Recent-frame exclusion gap for loop candidates (default: 250)\n"
         << "  --max-iter N                    RANSAC/FGR max iterations (default: 1000)\n"
+        << "  --ransac-n N                    Correspondences sampled by RANSAC, default 4 or 3 for CU\n"
         << "  --check-th VALUE                Range-check threshold (default: 1000000)\n"
         << "  --init-pcd-num N                Initial database size N_d (default: 400)\n"
+        << "  --init-words-num N              Initial visual-word count (default: 50)\n"
+        << "  --words-num-add N               Visual words added at each dictionary update (default: 10)\n"
         << "  --update-num N                  Dictionary update interval N_u (default: 200)\n"
         << "  --lambda-word VALUE             Coarse word-overlap threshold lambda_w (default: 0.2)\n"
+        << "  --lambda-label VALUE            Reserved semantic-label threshold value (default: 1.0 when semantic)\n"
+        << "  --semantic-num N                Number of valid static semantic labels; valid labels are -1 or [0, N-1] (default: 14)\n"
         << "  --async-update                  Rebuild BoW dictionary in a background thread\n"
         << "  --registration-backend NAME     ransac or fgr (default: ransac)\n\n"
         << "Output options:\n"
@@ -402,9 +411,51 @@ void complete_defaults(Options& opt)
         opt.ransac_n = opt.dataset == "CU" ? 3 : 4;
     }
 
-    if(opt.init_pcd_num <= 0 || opt.update_num <= 0 || opt.keypoint_num <= 0 || opt.feature_dim <= 0)
+    if(opt.init_pcd_num < 2)
     {
-        throw runtime_error("init/update/keypoint/feature dimensions must be positive");
+        throw runtime_error("--init-pcd-num must be at least 2 because dictionary initialization needs two or more frames");
+    }
+    if(opt.update_num <= 0 || opt.keypoint_num <= 0 || opt.feature_dim <= 0)
+    {
+        throw runtime_error("--update-num, --keypoint-num, and --feature-dim must be positive");
+    }
+    if(opt.init_words_num <= 0 || opt.words_num_add <= 0 || opt.search_num <= 0)
+    {
+        throw runtime_error("--init-words-num, --words-num-add, and --search-num must be positive");
+    }
+    if(opt.near_num <= 0)
+    {
+        throw runtime_error("--near-num must be positive");
+    }
+    if(opt.gap_num < 0)
+    {
+        throw runtime_error("--gap-num must be non-negative");
+    }
+    if(opt.max_iter <= 0 || opt.ransac_n <= 0)
+    {
+        throw runtime_error("--max-iter and --ransac-n must be positive");
+    }
+    if(opt.semantic_num <= 0)
+    {
+        throw runtime_error("--semantic-num must be positive");
+    }
+    if(!isfinite(opt.lambda_word) || opt.lambda_word < 0.0)
+    {
+        throw runtime_error("--lambda-word must be a finite non-negative number");
+    }
+    if(!isfinite(opt.lambda_label))
+    {
+        throw runtime_error("--lambda-label must be finite");
+    }
+    if(!isfinite(opt.fit_th) || !isfinite(opt.score_th) ||
+       !isfinite(opt.fit_th_2) || !isfinite(opt.score_th_2) ||
+       !isfinite(opt.check_th))
+    {
+        throw runtime_error("registration and range-check thresholds must be finite");
+    }
+    if(opt.check_th <= 0.0)
+    {
+        throw runtime_error("--check-th must be positive");
     }
 }
 

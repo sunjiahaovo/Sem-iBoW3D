@@ -39,12 +39,16 @@ namespace iBoW3D
 
         // current frame info
         pcd_num = current_pcd->points_.size();
-        pFC = new FeatureContainer(keypoint_num, feature_dim, pcd_num, frameID, key_feature_path, all_feature_path);
+        auto initialFC = std::unique_ptr<FeatureContainer>(
+            new FeatureContainer(keypoint_num, feature_dim, pcd_num, frameID, key_feature_path, all_feature_path));
 
         if(is_semantic)
         {
-            pLC = new LabelContainer(keypoint_num, frameID, key_label_path);
+            auto initialLC = std::unique_ptr<LabelContainer>(
+                new LabelContainer(keypoint_num, frameID, key_label_path, semantic_num));
+            pLC = initialLC.release();
         }
+        pFC = initialFC.release();
 
         /* current_hist = Mat::zeros(Size(1,words_num), CV_16S); */
         current_hist.resize(words_num, 1);
@@ -58,17 +62,69 @@ namespace iBoW3D
 
     void iBoW3D::update_current_frame(std::shared_ptr<geometry::PointCloud> current_pcd_, int frameID_)
     {
-        current_pcd = current_pcd_;
-        frameID = frameID_;
-        pcd_num = current_pcd->points_.size();
-        delete pFC;
-        delete pLC;
-        pFC = new FeatureContainer(keypoint_num, feature_dim, pcd_num, frameID, key_feature_path, all_feature_path);
+        int next_pcd_num = current_pcd_->points_.size();
+        auto nextFC = std::unique_ptr<FeatureContainer>(
+            new FeatureContainer(keypoint_num, feature_dim, next_pcd_num, frameID_, key_feature_path, all_feature_path));
+        std::unique_ptr<LabelContainer> nextLC;
 
         if(is_semantic)
         {
-            pLC = new LabelContainer(keypoint_num, frameID, key_label_path);
+            nextLC.reset(new LabelContainer(keypoint_num, frameID_, key_label_path, semantic_num));
         }
+
+        delete pFC;
+        delete pLC;
+        current_pcd = current_pcd_;
+        frameID = frameID_;
+        pcd_num = next_pcd_num;
+        pFC = nextFC.release();
+        pLC = nextLC.release();
+    }
+
+    void iBoW3D::validate_label_value(int label, int semantic_num, const std::string& context)
+    {
+        if(label < -1 || label >= semantic_num)
+        {
+            throw runtime_error("Semantic label out of range at " + context + ": " + to_string(label) +
+                                " allowed range is -1 or [0, " + to_string(semantic_num - 1) + "]");
+        }
+    }
+
+    double iBoW3D::mean_candidate_distance(const vector<pair<double, int>>& distance_list,
+                                           int center_frame_id,
+                                           int near_num,
+                                           vector<int>* island)
+    {
+        if(near_num <= 0)
+        {
+            throw runtime_error("near_num must be positive");
+        }
+
+        double dist_sum = 0.0;
+        int idx_num = 0;
+        if(island)
+        {
+            island->clear();
+        }
+
+        for(const auto& candidate : distance_list)
+        {
+            if(abs(candidate.second - center_frame_id) < near_num)
+            {
+                if(island)
+                {
+                    island->push_back(candidate.second);
+                }
+                dist_sum += candidate.first;
+                idx_num++;
+            }
+        }
+
+        if(idx_num == 0)
+        {
+            throw runtime_error("No candidates found inside near_num window for frame " + to_string(center_frame_id));
+        }
+        return dist_sum / static_cast<double>(idx_num);
     }
 
     void iBoW3D::snapshot_database(vector<cv::Mat>& key_feat_DB,
@@ -206,6 +262,8 @@ namespace iBoW3D
                 for(int j=0; j<keypoint_num; j++)
                 {
                     int label_idx = temp_L.at<int>(j);
+                    validate_label_value(label_idx, semantic_num, "database label frame-index " + to_string(i) +
+                                                              " keypoint " + to_string(j));
                     if(label_idx == -1)
                     {
                         continue;
@@ -216,6 +274,10 @@ namespace iBoW3D
                 }
             }
             cout << "key_feat_sum 1: " << key_feat_sum << endl;
+            if(key_feat_sum == 0)
+            {
+                throw runtime_error("No valid semantic keypoint labels were found while building the dictionary");
+            }
 
             // obtain each element of keyFeatures_list
             for(int i=0; i<semantic_num; i++)
@@ -327,6 +389,8 @@ namespace iBoW3D
                 for(int j = 0; j < keypoint_num; j++)
                 {
                     int label_idx = temp_L.at<int>(j);
+                    validate_label_value(label_idx, semantic_num, "database histogram label frame-index " + to_string(i) +
+                                                              " keypoint " + to_string(j));
                     if(label_idx == -1)
                     {
                         continue;
@@ -608,6 +672,8 @@ namespace iBoW3D
                 temp = (pFC->getKeyFeature()).row(i);
 
                 temp_semantic_label = (pLC->getKeyLabel()).at<int>(i,0);
+                validate_label_value(temp_semantic_label, semantic_num, "current frame " + to_string(frameID) +
+                                                              " keypoint " + to_string(i));
                 if(temp_semantic_label == -1)
                 {
                     continue;
@@ -844,25 +910,14 @@ namespace iBoW3D
             vector<double> avg_dist_list;
             vector<int> idx_num_list;
             vector<int> idx_island_temp;
-            int dist_sum = 0;
-            int idx_num = 0;
             int chosen_old_loop_flag = 0;
             vector<int> island1, island2, island3;
             for(iter1=distance_list.begin(); iter1!=distance_list.end(); iter1++)
             {
-                idx_island_temp.clear();
-                dist_sum = 0;
-                idx_num = 0;
-                for(iter2=distance_list.begin(); iter2!=distance_list.end(); iter2++)
-                {
-                    if (abs((*iter2).second - (*iter1).second) < near_num){
-                        idx_island_temp.push_back((*iter2).second);
-                        dist_sum += (*iter2).first;
-                        idx_num++;
-                    }
-                }
+                double avg_dist = mean_candidate_distance(distance_list, (*iter1).second, near_num, &idx_island_temp);
+                int idx_num = static_cast<int>(idx_island_temp.size());
                 idx_island_list.push_back(idx_island_temp);
-                avg_dist_list.push_back(dist_sum/idx_num);
+                avg_dist_list.push_back(avg_dist);
                 idx_num_list.push_back(idx_num);
                 if (chosen_old_loop_flag==0 && abs(lastLoopID-(*iter1).second)<near_num/2)
                 {
