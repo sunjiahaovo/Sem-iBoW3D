@@ -156,7 +156,8 @@ if(BUILD_TESTING)
   if(SEM_IBOW3D_BUILD_APP)
     add_test(NAME cli_help COMMAND sem_ibow3d --help)
     set_tests_properties(cli_help PROPERTIES
-      PASS_REGULAR_EXPRESSION "--keypoint-num;--feature-dim;--init-words-num;--words-num-add;--near-num;--gap-num;--ransac-n;--semantic-num;--lambda-label"
+      PASS_REGULAR_EXPRESSION "--keypoint-num;--feature-dim;--init-words-num;--words-num-add;--near-num;--gap-num;--ransac-n;--semantic-num"
+      FAIL_REGULAR_EXPRESSION "--lambda-label"
     )
 
     add_test(
@@ -173,6 +174,14 @@ if(BUILD_TESTING)
               "--near-num must be positive"
               "$<TARGET_FILE:sem_ibow3d>"
               --dataset KITTI --sequence 00 --near-num 0
+    )
+
+    add_test(
+      NAME cli_rejects_removed_lambda_label
+      COMMAND ${Python3_EXECUTABLE} "${PROJECT_SOURCE_DIR}/tests/expect_command_failure.py"
+              "Unknown argument: --lambda-label"
+              "$<TARGET_FILE:sem_ibow3d>"
+              --dataset KITTI --sequence 00 --lambda-label 1.0
     )
 
     add_test(

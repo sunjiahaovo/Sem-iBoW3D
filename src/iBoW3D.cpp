@@ -17,7 +17,7 @@ namespace iBoW3D
                    double score_th_, double fit_th_, double check_th_, double score_th_2_, double fit_th_2_,
                    bool prior_fit_, int gap_num_,
                    int max_iter_, int ransac_n_, bool remove_outliers_,
-                   bool is_semantic_, int semantic_num_, const std::string key_label_path_, double lambda_label_):
+                   bool is_semantic_, int semantic_num_, const std::string key_label_path_):
     frameID(frameID_), lastLoopID(-100), LoopID(-1),
     current_pcd(current_pcd_), pcd_num(0),
     key_feature_path(key_feature_path_), all_feature_path(all_feature_path_),
@@ -26,7 +26,7 @@ namespace iBoW3D
     words_num(init_words_num_), words_num_add(words_num_add_),
     new_words_num(0),
     keypoint_num(keypoint_num_), feature_dim(feature_dim_),
-    lambda_word(lambda_word_), lambda_label(lambda_label_),
+    lambda_word(lambda_word_),
     near_num(near_num_), search_num(search_num_),
     score_th(score_th_), fit_th(fit_th_), check_th(check_th_), score_th_2(score_th_2_), fit_th_2(fit_th_2_),
     prior_fit(prior_fit_), gap_num(gap_num_),

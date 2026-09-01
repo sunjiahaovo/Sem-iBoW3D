@@ -56,7 +56,6 @@ struct Options
     int semantic_num = 14;
 
     double lambda_word = 0.2;
-    double lambda_label = -1.0;
     double fit_th = -1.0;
     double score_th = -1.0;
     double fit_th_2 = -1.0;
@@ -244,7 +243,6 @@ void print_help(const char* program)
         << "  --words-num-add N               Visual words added at each dictionary update (default: 10)\n"
         << "  --update-num N                  Dictionary update interval N_u (default: 200)\n"
         << "  --lambda-word VALUE             Coarse word-overlap threshold lambda_w (default: 0.2)\n"
-        << "  --lambda-label VALUE            Reserved semantic-label threshold value (default: 1.0 when semantic)\n"
         << "  --semantic-num N                Number of valid static semantic labels; valid labels are -1 or [0, N-1] (default: 14)\n"
         << "  --async-update                  Rebuild BoW dictionary in a background thread\n"
         << "  --registration-backend NAME     ransac or fgr (default: ransac)\n\n"
@@ -295,7 +293,6 @@ Options parse_args(int argc, char** argv)
         else if(arg == "--ransac-n") opt.ransac_n = parse_int(require_value(i, argc, argv), arg);
         else if(arg == "--semantic-num") opt.semantic_num = parse_int(require_value(i, argc, argv), arg);
         else if(arg == "--lambda-word") opt.lambda_word = parse_double(require_value(i, argc, argv), arg);
-        else if(arg == "--lambda-label") opt.lambda_label = parse_double(require_value(i, argc, argv), arg);
         else if(arg == "--fit-th") opt.fit_th = parse_double(require_value(i, argc, argv), arg);
         else if(arg == "--score-th") opt.score_th = parse_double(require_value(i, argc, argv), arg);
         else if(arg == "--fit-th2") opt.fit_th_2 = parse_double(require_value(i, argc, argv), arg);
@@ -442,10 +439,6 @@ void complete_defaults(Options& opt)
     if(!isfinite(opt.lambda_word) || opt.lambda_word < 0.0)
     {
         throw runtime_error("--lambda-word must be a finite non-negative number");
-    }
-    if(!isfinite(opt.lambda_label))
-    {
-        throw runtime_error("--lambda-label must be finite");
     }
     if(!isfinite(opt.fit_th) || !isfinite(opt.score_th) ||
        !isfinite(opt.fit_th_2) || !isfinite(opt.score_th_2) ||
@@ -736,8 +729,7 @@ int main(int argc, char** argv)
             false,
             opt.semantic,
             opt.semantic_num,
-            opt.label_dir,
-            opt.lambda_label));
+            opt.label_dir));
 
         recognizer->set_async_update(opt.async_update);
         recognizer->set_registration_backend(opt.registration_backend);

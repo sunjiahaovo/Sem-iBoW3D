@@ -26,3 +26,4 @@ Release cleanup changes relative to the internal experiment tree:
 - Fixed candidate-island mean distance calculation to use floating-point accumulation and division.
 - Added CTest regression coverage for input contracts, CLI help, parameter rejection, and registration-path smoke testing.
 - Added a sanitizer build option, `-DSEM_IBOW3D_ENABLE_SANITIZERS=ON`, for local ASan/UBSan checks.
+- Removed the unused `--lambda-label` public option and internal no-op storage.

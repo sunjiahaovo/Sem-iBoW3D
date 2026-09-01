@@ -87,7 +87,7 @@ namespace iBoW3D
                    double score_th_, double fit_th_, double chech_th_, double score_th_2_, double fit_th_2_,
                    bool prior_fit_, int gap_num_,
                    int max_iter_, int ransac_n_, bool remove_outliers_,
-                   bool is_semantic_, int semantic_num_, const std::string key_label_path_, double lambda_label_);
+                   bool is_semantic_, int semantic_num_, const std::string key_label_path_);
 
             ~iBoW3D()
             {
@@ -201,7 +201,6 @@ namespace iBoW3D
 
             // hyperparameters
             double lambda_word;
-            double lambda_label;
 
             int near_num;
             int search_num;

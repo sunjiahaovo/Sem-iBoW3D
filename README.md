@@ -177,7 +177,7 @@ Default thresholds follow the paper experiments:
 | SemanticKITTI / KITTI | 0.94 | 1.4 | 5 | 1000 | 1000000 |
 | KITTI-360 | 0.90 | 1.6 | 5 | 1000 | 1000000 |
 
-Use `--fit-th`, `--score-th`, `--fit-th2`, `--score-th2`, `--search-num`, `--max-iter`, and `--check-th` to override them. Use `--keypoint-num`, `--feature-dim`, `--init-words-num`, `--words-num-add`, `--near-num`, `--gap-num`, `--ransac-n`, `--semantic-num`, and `--lambda-label` only when your prepared data or experiment protocol differs from the defaults.
+Use `--fit-th`, `--score-th`, `--fit-th2`, `--score-th2`, `--search-num`, `--max-iter`, and `--check-th` to override them. Use `--keypoint-num`, `--feature-dim`, `--init-words-num`, `--words-num-add`, `--near-num`, `--gap-num`, `--ransac-n`, and `--semantic-num` only when your prepared data or experiment protocol differs from the defaults.
 
 ## Outputs
 
